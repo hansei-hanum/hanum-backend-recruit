@@ -1,145 +1,36 @@
-from fastapi import FastAPI, HTTPException, Header, Response
-from pydantic import BaseModel, constr
-from sqlalchemy import func, select
-from datetime import datetime 
-import sys
+from fastapi import FastAPI, Header
+from pathlib import Path
+from database.core import async_engine, Base  # Base를 여기서 임포트합니다.
+from routes import include_router
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession  # 필요한 비동기 함수를 임포트합니다.
 
 app = FastAPI()
 
-from pathlib import Path
-current_dir = Path(__file__).resolve().parent
+from tools import check_auth  # check_auth 함수를 임포트합니다.
 
-from database.core import *
-from database.user import * 
-from database.application import *
+from routes.application import *
+from routes.user import *
 
-from model import *
-from tools import *
+# 라우터를 임포트합니다.
+from routes.user import router as user_router
+from routes.application import router as application_router
 
-Base.metadata.create_all(
-    bind=engine
-)  
+# 데이터베이스 테이블을 비동기적으로 생성합니다.
+async def create_tables():
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
-@app.post("/api/register", tags=["register"])
-async def register(data: Register_example): 
-    if data.password != data.re_pw:
-        return {"비밀번호가 일치하지 않습니다."}
-
-    hashed_pw = hashing_pw(
-        data.password
-    ) 
-
-    db_user = User( 
-        username=data.username,
-        password=hashed_pw,
-        school_id=data.school_id,
-    )
-
-    with SessionLocal() as db:  
-        db.add(db_user)  
-        db.commit()
-
-    return {"ok": "True"}
-
-@app.post("/api/login", tags=["login"])
-async def login(data: Login_example):
-    pw = data.password
-    hashed_pw = hashing_pw(pw)
-    
-    with SessionLocal() as db:  
-        user = db.query(User).filter(User.username == data.username, User.password == hashed_pw).first()
-
-    if not user:
-        return {"아이디 혹은 비밀번호가 다릅니다."}
-
-    elif user.role == 'admin':
-        token = admin_Token(user.id)
-        return ({"ok": "true"}, token) 
-    
-    token = encToken(user.id)
-    return ({"ok": "true"}, token)
-
-@app.post("/api/application", tags=["application"]) # 임시저장 엔드포인트 
-async def application(data : Application_example, token : str = Header(...)):
-    user = check_auth(token)
-    
-    if not user: 
-        return {"로그인 후 이용 가능합니다."}
-    
-    db_value = Application(
-        bio = data.bio,
-        motive = data.motive,
-        plan = data.plan,
-        which_department = data.which_department,
-        user_id = user,
-        last_modified=datetime.now().isoformat()
-    )
-    
-    with SessionLocal() as db:  
-        db.add(db_value)  
-        db.commit()
-
-    return {"ok": "True"}
-
-@app.post("/api/final_submit", tags=["application"]) # 최종제출 엔드포인트
-async def final_submit(data : Application_example, token : str = Header(...)):
-    user = check_auth(token)
-    
-    with SessionLocal() as db: 
-        user_info = db.query(User).filter(User.id == user).first()
-        
-    if user_info.is_submitted == True:
-        raise {"ok": "False", "message":"이미 제출하셨습니다."}
-    
-    db_value = Application(
-        bio = data.bip,
-        motive = data.motive,
-        plan = data.plan,
-        which_department = data.which_department,
-        user_id = user,
-        last_modified=datetime.now().isoformat()
-    )
-    
-    with SessionLocal() as db:  
-        db.add(db_value)  
-        db.commit()
-    
-    return {"ok": "True"}
-
-
-@app.get("/api/show_apply", tags=["application"]) # 임시저장 불러오기
-async def showApply(token : str = Header(...)):
-    user = check_auth(token)
-    
-    if not user:
-        return {"ok":"False", "message":"토큰이 올바르지 않습니다."}
-    
-    with SessionLocal() as db:
-        subquery = (
-            db.query(func.max(Application.id).label('max_id')) # 가장 최근인 지원서 max_id 로 지정 
-            .filter(Application.user_id == user) 
-            .group_by(Application.which_department) # 부서별로 값 묶어주기
-        ).subquery()
-
-        latest_applications = (
-            db.query(Application)
-            .join(subquery, Application.id == subquery.c.max_id)  # max_id 로 지원서 찾기 
-            .all()
-        )
-
-    return {"ok":"True", "value":latest_applications}
+# 라우터를 애플리케이션에 포함시킵니다.
+# app.include_router(user_router)
+# app.include_router(application_router)
 
 @app.post("/api/authcheck", tags=["authcheck test"])
 async def authcheck(token : str = Header(...)):
     user = check_auth(token)
     
     if not user:
-        return {"ok":"False"}
+        return {"ok": "False"}
     
-    return {"recived_token": token}
+    return {"received_token": token}
 
-
-if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+include_router(app)
