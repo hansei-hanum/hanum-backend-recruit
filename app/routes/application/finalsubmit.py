@@ -28,10 +28,10 @@ async def final_submit(data : Application_example, token : str = Header(...)):
         raise HTTPException(status_code=401, detail="로그인 후 이용 가능합니다.")
 
     async with AsyncSessionLocal() as session: 
-        user_info = await session.execute(select(User).where(User.id == user))
-        user_row = user_info.scalars().first()
+        result = await session.execute(select(Application).where(User.id == user))
+        apply_info = result.scalars().first()
         
-        if user_row.is_submitted == True:
+        if apply_info.is_submitted == True:
             raise HTTPException(status_code=400, detail="이미 제출하셨습니다.")
     
         department_info = await session.execute(select(Department).where(Department.name == data.which_department))
@@ -46,16 +46,13 @@ async def final_submit(data : Application_example, token : str = Header(...)):
         plan = data.plan,
         department_id = department_row.id,
         user_id = user,
-        last_modified=datetime.now()
+        last_modified=datetime.now(),
+        is_submitted = True
     )
 
-    user_row.is_submitted = True
     
     async with AsyncSessionLocal() as db:  
         db.add(db_value) 
-        db.add(user_row) 
         await db.commit()
-
-        db.refresh(user_info)
 
     return {"ok": "True"} 

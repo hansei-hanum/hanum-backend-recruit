@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Header, Response, APIRouter
 from pydantic import BaseModel
 from datetime import datetime
 from sqlalchemy.future import select 
+from sqlalchemy.sql.expression import desc
 from database.core import AsyncSessionLocal
 from database.user import User
 from database.application import Application
@@ -24,17 +25,17 @@ async def submit_apply(data: ApplicationExample, token: str = Header(...)):
         raise HTTPException(status_code=401, detail="로그인 후 이용 가능합니다.")
     
     async with AsyncSessionLocal() as session:
-        result = await session.execute(select(User).where(User.id == user))
-        user_info = result.scalars().first()  
+        result = await session.execute(select(Application).order_by(desc(Application.id)))
+        apply_info = result.scalars().first()
     
-    if user_info and user_info.is_submitted:
-        raise HTTPException(status_code=401, detail="이미 제출하셨습니다.")
+        if apply_info.is_submitted:
+            raise HTTPException(status_code=401, detail="이미 제출하셨습니다.")
 
-    async with AsyncSessionLocal() as session:
         result = await session.execute(select(Department).where(Department.name == data.which_department))
         department_info = result.scalars().first()  
-    if not department_info:
-        raise HTTPException(status_code=404, detail="존재하지 않는 부서입니다.")
+        
+        if not department_info:
+            raise HTTPException(status_code=404, detail="존재하지 않는 부서입니다.")
 
     db_value = Application(
         bio=data.bio,
@@ -45,8 +46,8 @@ async def submit_apply(data: ApplicationExample, token: str = Header(...)):
         last_modified=datetime.now()
     )
     
-    async with AsyncSessionLocal() as session:
-        session.add(db_value)
-        await session.commit()
+    async with AsyncSessionLocal() as db:
+        db.add(db_value)
+        await db.commit()
 
     return {"ok": True}
