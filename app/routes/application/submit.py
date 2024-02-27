@@ -1,12 +1,12 @@
 from fastapi import FastAPI, HTTPException, Header, Response, APIRouter
 from pydantic import BaseModel
 from datetime import datetime
-from sqlalchemy.future import select  # SQLAlchemy 1.4 이상에서 비동기 쿼리 사용
+from sqlalchemy.future import select 
 from database.core import AsyncSessionLocal
 from database.user import User
 from database.application import Application
 from database.department import Department
-from tools import check_auth  # check_auth가 비동기 함수라고 가정
+from tools import check_auth  
 
 router = APIRouter()
 
@@ -28,9 +28,8 @@ async def submit_apply(data: ApplicationExample, token: str = Header(...)):
         user_info = result.scalars().first()  
     
     if user_info and user_info.is_submitted:
-        raise HTTPException(status_code=400, detail="이미 제출하셨습니다.")
+        raise HTTPException(status_code=401, detail="이미 제출하셨습니다.")
 
-    
     async with AsyncSessionLocal() as session:
         result = await session.execute(select(Department).where(Department.name == data.which_department))
         department_info = result.scalars().first()  

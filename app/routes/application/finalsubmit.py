@@ -24,19 +24,21 @@ class Application_example(BaseModel):
 async def final_submit(data : Application_example, token : str = Header(...)):
     user = check_auth(token)
     
+    if not user:
+        raise HTTPException(status_code=401, detail="로그인 후 이용 가능합니다.")
+
     async with AsyncSessionLocal() as session: 
         user_info = await session.execute(select(User).where(User.id == user))
         user_row = user_info.scalars().first()
         
-    if user_row.is_submitted == True:
-        raise HTTPException(status_code=400, detail="이미 제출하셨습니다.")
+        if user_row.is_submitted == True:
+            raise HTTPException(status_code=400, detail="이미 제출하셨습니다.")
     
-    async with AsyncSessionLocal() as session: 
         department_info = await session.execute(select(Department).where(Department.name == data.which_department))
         department_row = department_info.scalars().first()
 
-    if not department_row:
-        raise HTTPException(status_code=400, detail="존재하지 않는 부서입니다.")
+        if not department_row:
+            raise HTTPException(status_code=400, detail="존재하지 않는 부서입니다.")
     
     db_value = Application(
         bio = data.bio,

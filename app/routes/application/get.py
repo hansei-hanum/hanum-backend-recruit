@@ -33,7 +33,6 @@ async def get_apply(token : str = Header(...)):
             Application.department_id
         ).subquery()
 
-        # Main query to get the latest applications by joining with the subquery
         latest_applications_query = select(Application).join(
             max_id_subquery, Application.id == max_id_subquery.c.max_id
         )
