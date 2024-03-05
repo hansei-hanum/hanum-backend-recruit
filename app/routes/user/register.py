@@ -32,8 +32,14 @@ async def register(data: Register_example):
         school_id=data.school_id,
     )
 
-    async with AsyncSessionLocal() as db:  
-        db.add(db_user)  
-        await db.commit()
+    async with AsyncSessionLocal() as session:  
+
+        user = await session.execute(select(User).filter(User.username == data.username))
+
+        if user: 
+            raise HTTPException(status_code=400, detail="이미 가입하셨습니다.")
+
+        session.add(db_user)  
+        await session.commit()
 
     return {"ok": True}
