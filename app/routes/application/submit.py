@@ -19,9 +19,9 @@ class ApplicationExample(BaseModel):
     which_department: str
 
 @router.post("/api/application", tags=["application"])
-async def submit_apply(data: ApplicationExample, user=Depends(RequireAuth)):
+async def submit_apply(data: ApplicationExample, userid=Depends(RequireAuth)):
     
-    if not user:
+    if not userid:
         raise HTTPException(status_code=401, detail="로그인 후 이용 가능합니다.")
     
     async with AsyncSessionLocal() as session:
@@ -42,7 +42,7 @@ async def submit_apply(data: ApplicationExample, user=Depends(RequireAuth)):
         motive=data.motive,
         plan=data.plan,
         department_id=department_info.id, 
-        user_id=user,
+        user_id=userid,
         last_modified=datetime.now()
     )
     
