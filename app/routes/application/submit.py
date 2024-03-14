@@ -1,6 +1,7 @@
-from fastapi import FastAPI, HTTPException, Header, Response, APIRouter
+from fastapi import FastAPI, HTTPException, Header, Response, APIRouter, Depends
 from pydantic import BaseModel
 from datetime import datetime
+from depends import RequireAuth
 from sqlalchemy.future import select 
 from sqlalchemy.sql.expression import desc
 from database.core import AsyncSessionLocal
@@ -18,8 +19,7 @@ class ApplicationExample(BaseModel):
     which_department: str
 
 @router.post("/api/application", tags=["application"])
-async def submit_apply(data: ApplicationExample, token: str = Header(...)):
-    user = check_auth(token)  
+async def submit_apply(data: ApplicationExample, user=Depends(RequireAuth)):
     
     if not user:
         raise HTTPException(status_code=401, detail="로그인 후 이용 가능합니다.")
