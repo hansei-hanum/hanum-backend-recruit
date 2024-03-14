@@ -4,7 +4,6 @@ package auth;
 
 service AuthService {
     rpc Authorize(AuthorizeRequest) returns (AuthorizeResult) {}
-    rpc GetUser(GetUserRequest) returns (GetUserResult) {}
     rpc SendPush(SendPushRequest) returns (SendPushResult) {}
 }
 
@@ -15,10 +14,6 @@ message AuthorizeRequest {
 message AuthorizeResult {
     bool success = 1;
     optional int64 userid = 2;
-}
-
-message GetUserRequest {
-    int64 userid = 1;
 }
 
 message Verification {
@@ -39,11 +34,6 @@ message User {
     string created_at = 6;
     bool is_suspended = 7;
     optional Verification verification = 8;
-}
-
-message GetUserResult {
-    bool success = 1;
-    optional User user = 2;
 }
 
 message SendPushRequest {
