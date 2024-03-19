@@ -33,6 +33,17 @@ async def final_submit(data : Application_example, user=Depends(RequireAuth)):
         
         if apply_info.is_submitted == True:
             raise HTTPException(status_code=400, message="이미 제출하셨습니다.")
+        
+        if apply_info:
+            apply_info.bio = data.bio
+            apply_info.motive = data.motive
+            apply_info.plan = data.plan
+            apply_info.last_modified = datetime.now()
+            apply_info.is_submitted = True
+
+            session.add(apply_info)
+            await session.commit()
+            return {"message": "success"}
     
         department_info = await session.execute(select(Department).where(Department.name == data.which_department))
         department_row = department_info.scalars().first()

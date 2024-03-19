@@ -22,32 +22,41 @@ class ApplicationExample(BaseModel):
 async def submit_apply(data: ApplicationExample, userid=Depends(RequireAuth)):
     
     if not userid:
-        raise HTTPException(status_code=401, detail="로그인 후 이용 가능합니다.")
+        raise HTTPException(status_code=401, message="로그인 후 이용 가능합니다.")
     
     async with AsyncSessionLocal() as session:
         result = await session.execute(select(Application).order_by(desc(Application.id)))
         apply_info = result.scalars().first()
     
-        if apply_info.is_submitted:
-            raise HTTPException(status_code=401, detail="이미 제출하셨습니다.")
+        if apply_info and apply_info.is_submitted:
+            raise HTTPException(status_code=401, message="이미 제출하셨습니다.")
+            
+        if apply_info:
+            apply_info.bio = data.bio
+            apply_info.motive = data.motive
+            apply_info.plan = data.plan
+            apply_info.last_modified = datetime.now()
+            
+            session.add(apply_info)
+            await session.commit()
+            return {"message": "success"}
 
         result = await session.execute(select(Department).where(Department.name == data.which_department))
         department_info = result.scalars().first()  
         
         if not department_info:
-            raise HTTPException(status_code=404, detail="존재하지 않는 부서입니다.")
+            raise HTTPException(status_code=404, message="존재하지 않는 부서입니다.")
 
-    db_value = Application(
-        bio=data.bio,
-        motive=data.motive,
-        plan=data.plan,
-        department_id=department_info.id, 
-        user_id=userid,
-        last_modified=datetime.now()
-    )
+        db_value = Application(
+            bio=data.bio,
+            motive=data.motive,
+            plan=data.plan,
+            department_id=department_info.id, 
+            user_id=userid,
+            last_modified=datetime.now()
+        )
     
-    async with AsyncSessionLocal() as db:
-        db.add(db_value)
-        await db.commit()
+        session.add(db_value)
+        await session.commit()
 
     return {"ok": True}
